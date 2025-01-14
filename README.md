@@ -15,7 +15,7 @@ In the first picture, the two triangles are mapped differently. This is because,
 
 ## PS1
 
-The PS1 hardware graphics API had this issue of affine mapping, which is why many games on the PS1 had texture distortion. Some games attempted to solve this problem using tesselation, which is a technique to automatically subdivide polygons based on some criteria (usually distance to the player camera).
+The Playstation 1 hardware graphics API had this issue of affine mapping, which is why many games on the PS1 had texture distortion. Some games attempted to solve this problem using tesselation, which is a technique to automatically subdivide polygons based on some criteria (usually distance to the player camera).
 By dividing triangles repeatedly, you could eventually get to a point where the effect from z-axis interpolation was so low that it became unnoticable.
 
 However, tesselation was complicated and difficult to implement, so most games resorted to simply adding extra redundant vertices to reduce the noticeability of affine warping.
@@ -34,14 +34,14 @@ For our survival horror game, our lead artist wanted to emulate some visual char
 Since our game involves shooting zombies, we determined that decals were a high priority for blood spatters and bullet holes.
 
 ## The problem:
-Unity’s built-in decal system does what a modern engine should do, and takes into account the z-axis. 
+Unity’s built-in decal system does what a modern engine should do, and takes into account z-axis interpolation. 
 
 After lots of fiddling to try to create a custom decal shader which was compatible with Unity's URP Decal Projector and also produced an effect that mimicked affine warping, I realised that this was impossible.
 The bounds of the texture on the screen are strictly defined by the orthographic projection matrix of the decal projector, but in order for the decal to match the warping of the wall texture that it's on top of, the decal must be able to stretch beyond that space. Here is a picture illustrating the problem:
 
 ![image](https://github.com/user-attachments/assets/7e126371-913c-4af0-9b4f-e70493ad658f)
 
-If you look carefully, you can see that the warning sign decals are not distorting in accordance with the cube texture behind it. 
+If you look carefully, you can see that the warning sign decals are not distorting in accordance with the cube texture behind it.
 
 ## The solution:
 I dug deep into HLSL and Unity's Universal Render Pipeline in order to create a custom decal system which takes affine mapping into account. This is what the new system looks like with the same decal locations.
@@ -95,14 +95,14 @@ While it would be nice to properly organize this into a structure, Unity only al
 ### Serialization 
 Texture2DArray cannot be serialized by the built-in Unity serializer. This means that we cannot take advantage of Unity’s built-in logic for when to serialize and deserialize objects within the Editor. 
 The standard solution is to use ISerializationCallbackReceiver, but due to the fact that the Texture2DArray data changes only on the GPU, Unity often fails to call OnBeforeSerialize properly.
-This creates a lot of challenges regarding switching scenes and opening/closing the Editor, since one missed serialize/deserialize can result in lost or corrupted data. While I have created the basic functionality and manually tested basic scenarios, there are probably many more uncaught edge cases.
+This creates a lot of challenges regarding switching scenes and opening/closing the Editor, since one missed serialize/deserialize can result in lost or corrupted data. While I have created the basic functionality and manually tested basic scenarios, there are probably many more undiscovered edge cases.
 
 
 ## To-do:
 - The code in this repository was simply copied and pasted from our game's source files. In the future, it should be separated as a package with a manifest.json.
 - Editor tooling needs a lot of work.
 - Serialization is barebones and needs to be thoroughly tested.
-- It might be possible to use tesselation stage instead of the geometry stage to pass raw vertex data to the fragment stage, so that the shader is compatible with the Metal Graphics API.
+- It might be possible to use tesselation stage instead of the geometry stage to pass raw vertex data to the fragment stage so that the shader is compatible with the Metal Graphics API.
 - This code was designed to work with static scene objects. Moving objects could technically work by refreshing the decal positions every `FixedUpdate` with `Shader.SetGlobalVectorArray`, but this might prove to be prohibitively slow.
   - Idea one: Have all moving objects write to one central list, and push all of these changes to the GPU simultaneously in one `SetGlobalVectorArray` call in FixedUpdate. This would allow you to have many moving objects with only one push per FixedUpdate.
   - Idea two: Have each moving object keep its own individual list of decals that should be drawn upon it. Use a compute shader to determine where the new decal position should be drawn each frame. This allows you to do GPU->GPU data transfer from the compute shader to the decal shader, which is likely more performant.
