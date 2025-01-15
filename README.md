@@ -3,15 +3,15 @@ This repository provides the code necessary to create affine-mapped decals in Un
 If you want to skip to the technical overview, you can click [here](#technical-overview).
 
 ## What is affine texture mapping?
-As illustrated in Daniel Ilett’s [blog](https://danielilett.com/2021-11-06-tut5-21-ps1-affine-textures/), affine mapping refers to perspective texture mapping which fails to take into account the z-axis. Here is an example of what it looks like on a textured quad which is leaning away from the camera.
+As illustrated in Daniel Ilett’s [blog](https://danielilett.com/2021-11-06-tut5-21-ps1-affine-textures/), affine mapping refers to texture mapping which fails to consider z-axis interpolation. Here is an example of what it looks like on a textured quad which is leaning away from the camera.
 
 ![part21-affine-mapping](https://github.com/user-attachments/assets/299db424-ad7b-48ba-857e-43ff74c88118)
 
-The ideal mapping which considers the z-axis looks like this:
+The ideal mapping looks like this:
 
 ![part21-perspective-correct](https://github.com/user-attachments/assets/d35cb74a-e2c5-4126-ae9a-43e9896558ce)
 
-In the first picture, the two triangles are mapped differently. This is because, during the vertex stage of the graphics pipeline, the z-axis is not taken into account when interpolating between vertices of the triangle.
+In the first picture, the two triangles which make up the quad are mapped discontinuously. This is because, during the vertex stage of the graphics pipeline, the z-axis is not taken into account when interpolating between the vertices of the triangle. That is the reason why all of the squares inside the triangle appear to be the same size. Ideal perspective mapping would have them become smaller as they get further away from the camera, just like the quad itself.
 
 ## PS1
 
@@ -85,12 +85,12 @@ A FixedQueue is used to manage these buffers because the GPU buffers are fixed, 
 ## Challenges:
 
 ### HLSL dependencies
-In order to make shaders that consider lighting and shadows in Unity URP, there is a lot of boilerplate that you need to include in your .shader files. Hand-written shaders need to #include a bunch of HLSL files, and #pragma a ton of keywords. This lack of ergonomics is due to Unity's shift to a node-based, graphical shader editor, which unfortunately still lacks many features. Thankfully, I was able to use this [surface shader base](https://github.com/traggett/UnityUniversalRPSurfaceShader) made by Traggett to avoid having to research all of the inner workings of URP lighting and shadows. However, due to my use of the geometry shader stage, I was forced to heavily modify most of the files from the template.
+In order to make shaders that consider lighting and shadows in Unity URP, there is a lot of boilerplate that you need to include in your .shader files. Hand-written shaders need to #include a bunch of HLSL files, and #pragma a ton of keywords. This lack of ergonomics is due to Unity's shift to a node-based, graphical shader editor, which unfortunately still lacks many features. Thankfully, I was able to use this [surface shader base](https://github.com/traggett/UnityUniversalRPSurfaceShader) made by Traggett to avoid having to research all of the inner workings of URP lighting and shadows. However, due to my use of the geometry shader stage, I needed to heavily modify most of the files from the template.
 
 ### Upgrading from Texture2D to Texture2DArray
 Throughout early development, I sampled from a single Texture2D which was assigned in an Inspector reference. For a real game, the system needed to be expanded to work for any arbitrary number of textures created by artists and assigned in the Editor. Rather than sampling from a Texture2D in the fragment stage, we need to use a Texture2DArray which stores all of the possible decal textures for the level.
 Each decal position's corresponding texture index is stored in the w coordinate of the Vector4 in `_BulletDecalPositions`. We also store the width and height of each texture in the w coordinates of `_BulletDecalNormals` and `_BulletDecalTangents`.
-While it would be nice to properly organize this into a structure, Unity only allows us to send lists of data to the GPU in the form of Vector4 or other basic structures.
+While it would be nice to properly organize all of the decal texture data into one structure, Unity only allows us to send lists of data to the GPU in the form of Vector4 or other basic structures.
     
 ### Serialization 
 Texture2DArray cannot be serialized by the built-in Unity serializer. This means that we cannot take advantage of Unity’s built-in logic for when to serialize and deserialize objects within the Editor. 
